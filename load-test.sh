@@ -71,18 +71,25 @@ run_load_batch() {
 check_thread_pool() {
     local response=$(curl -s "$URL/api/metrics" 2>/dev/null)
     
-    if command -v jq &> /dev/null; then
-        local active=$(echo "$response" | jq -r '.threadPool.activeThreads' 2>/dev/null)
-        local max=$(echo "$response" | jq -r '.threadPool.maxThreads' 2>/dev/null)
-        local exhausted=$(echo "$response" | jq -r '.threadPool.exhausted' 2>/dev/null)
+    if command -v jq &> /dev/null && [ -n "$response" ]; then
+        local active=$(echo "$response" | jq -r '.threadPool.activeThreads // 0' 2>/dev/null)
+        local max=$(echo "$response" | jq -r '.threadPool.maxThreads // 20' 2>/dev/null)
+        local exhausted=$(echo "$response" | jq -r '.threadPool.exhausted // false' 2>/dev/null)
         
-        if [ "$exhausted" = "true" ]; then
-            echo -e "${RED}  Thread Pool: ${active}/${max} (EXHAUSTED!)${NC}"
-        elif [ $active -ge $((max * 80 / 100)) ]; then
-            echo -e "${YELLOW}  Thread Pool: ${active}/${max} (High Load)${NC}"
+        # Check if values are valid numbers
+        if [[ "$active" =~ ^[0-9]+$ ]] && [[ "$max" =~ ^[0-9]+$ ]]; then
+            if [ "$exhausted" = "true" ]; then
+                echo -e "${RED}  Thread Pool: ${active}/${max} (EXHAUSTED!)${NC}"
+            elif [ $active -ge $((max * 80 / 100)) ]; then
+                echo -e "${YELLOW}  Thread Pool: ${active}/${max} (High Load)${NC}"
+            else
+                echo -e "${GREEN}  Thread Pool: ${active}/${max} (Healthy)${NC}"
+            fi
         else
-            echo -e "${GREEN}  Thread Pool: ${active}/${max} (Healthy)${NC}"
+            echo -e "${YELLOW}  Thread Pool: Unable to retrieve stats${NC}"
         fi
+    else
+        echo -e "${YELLOW}  Thread Pool: Unable to retrieve stats (jq not available or no response)${NC}"
     fi
 }
 
