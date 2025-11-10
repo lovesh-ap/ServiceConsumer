@@ -239,26 +239,74 @@ Features:
 
 ### 3. Load Test Script (`load-test.sh`)
 Automated load testing to trigger thread pool exhaustion:
+
+**One-time load test:**
 ```bash
 ./load-test.sh [concurrent_requests]
 
 # Examples:
-./load-test.sh 50    # Default: 50 concurrent requests
-./load-test.sh 100   # Heavier load: 100 concurrent requests
+./load-test.sh           # Default: 50 concurrent requests
+./load-test.sh 100       # 100 concurrent requests
 ```
 
-What it does:
+**Continuous load test (constant load):**
+```bash
+./load-test.sh [concurrent_requests] [interval_seconds]
+
+# Examples:
+./load-test.sh 50 5      # 50 requests every 5 seconds (forever)
+./load-test.sh 30 10     # 30 requests every 10 seconds (forever)
+./load-test.sh 20 3      # 20 requests every 3 seconds (forever)
+```
+
+**Use Cases:**
+- **One-time mode**: Demonstrate instant thread pool exhaustion
+- **Continuous mode**: Simulate sustained load over hours (gradual degradation)
+
+**What it does:**
+
+One-time mode:
 1. Launches N concurrent requests to `/api/process-data`
 2. Monitors thread pool during load
 3. Tests if `/api/health` is accessible (should hang!)
 4. Captures thread dump for analysis
 5. Waits for recovery
 
-Output:
-- Real-time request completion logs
-- Thread pool statistics before/during/after
-- Thread dump saved to file
-- Total execution time
+Continuous mode:
+1. Sends batches of N requests every X seconds
+2. Monitors thread pool status after each batch
+3. Shows statistics every 10 batches
+4. Runs forever until Ctrl+C (graceful shutdown)
+5. Perfect for simulating 3-4 hour gradual starvation
+
+**Output:**
+- Real-time batch execution logs
+- Thread pool statistics (color-coded: healthy/high load/exhausted)
+- Cumulative statistics (total batches, requests, running time)
+- Thread dumps (one-time mode only)
+
+**Example Output (Continuous Mode):**
+```
+[2025-11-10 10:30:45] Batch #1: Launching 50 concurrent requests...
+✓ Batch #1: 50 requests sent
+  Thread Pool: 15/20 (Healthy)
+
+[2025-11-10 10:30:50] Batch #2: Launching 50 concurrent requests...
+✓ Batch #2: 50 requests sent
+  Thread Pool: 18/20 (High Load)
+
+[2025-11-10 10:30:55] Batch #3: Launching 50 concurrent requests...
+✓ Batch #3: 50 requests sent
+  Thread Pool: 20/20 (EXHAUSTED!)
+
+Statistics:
+  Batches sent: 10
+  Total requests: 500
+  Running time: 50s
+  Avg requests/sec: 10
+```
+
+**Stop the test:** Press `Ctrl+C` for graceful shutdown
 
 ---
 
